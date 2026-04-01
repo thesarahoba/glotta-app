@@ -17,7 +17,7 @@ declare global {
         ref: string;
         onClose: () => void;
         callback: (response: { reference: string }) => void;
-      }) => { openIframe: () => void };
+      }) => { openIframe: () => void } | null;
     };
   }
 }
@@ -45,6 +45,7 @@ export function PayButton({ walletId, balance, planType, installmentAmount }: Pa
     script.id = 'paystack-inline';
     script.src = 'https://js.paystack.co/v1/inline.js';
     script.onload = () => setScriptLoaded(true);
+    script.onerror = () => console.error('[paystack] Failed to load inline.js');
     document.body.appendChild(script);
   }, []);
 
@@ -62,6 +63,14 @@ export function PayButton({ walletId, balance, planType, installmentAmount }: Pa
       toast.error('Minimum payment is ₦100');
       return;
     }
+
+    // Use NEXT_PUBLIC env var directly — always available in client bundles
+    const paystackKey = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY;
+    if (!paystackKey) {
+      toast.error('Payment not configured. Please contact support.');
+      return;
+    }
+
     if (!scriptLoaded || !window.PaystackPop) {
       toast.error('Payment system not ready. Please refresh.');
       return;
@@ -69,8 +78,12 @@ export function PayButton({ walletId, balance, planType, installmentAmount }: Pa
 
     setLoading(true);
 
+    // Step 1: Create a pending payment record and get the reference
+    let reference: string;
+    let email: string;
+    let amountKobo: number;
+
     try {
-      // 1. Create pending payment record & get reference
       const initRes = await fetch('/api/payments/initiate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -80,14 +93,25 @@ export function PayButton({ walletId, balance, planType, installmentAmount }: Pa
       const initData = await initRes.json();
       if (!initRes.ok) {
         toast.error(initData.error ?? 'Could not initiate payment');
+        setLoading(false);
         return;
       }
 
-      const { reference, email, amount: amountKobo, publicKey } = initData;
+      reference = initData.reference;
+      email = initData.email;
+      amountKobo = initData.amount; // already in kobo
+    } catch (err) {
+      console.error('[paystack] initiate error:', err);
+      toast.error('Network error. Check your connection and try again.');
+      setLoading(false);
+      return;
+    }
 
-      // 2. Open Paystack popup
+    // Step 2: Open Paystack popup
+    // NOTE: callback must be synchronous — Paystack v1 does not await Promises
+    try {
       const handler = window.PaystackPop.setup({
-        key: publicKey,
+        key: paystackKey,
         email,
         amount: amountKobo,
         ref: reference,
@@ -95,33 +119,39 @@ export function PayButton({ walletId, balance, planType, installmentAmount }: Pa
           setLoading(false);
           toast('Payment cancelled.', { icon: '👋' });
         },
-        callback: async (response) => {
-          // 3. Verify server-side
-          try {
-            const verRes = await fetch('/api/payments/verify', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ reference: response.reference }),
+        callback: (response) => {
+          // Step 3: Verify server-side (sync callback → use .then chains)
+          fetch('/api/payments/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reference: response.reference }),
+          })
+            .then((res) => res.json().then((data) => ({ res, data })))
+            .then(({ res, data }) => {
+              if (res.ok) {
+                toast.success('Payment confirmed! 🎉');
+                router.refresh();
+              } else {
+                toast.error(data.error ?? 'Verification failed');
+              }
+            })
+            .catch(() => {
+              toast.error('Could not verify payment. Contact support if you were charged.');
+            })
+            .finally(() => {
+              setLoading(false);
             });
-
-            const verData = await verRes.json();
-            if (verRes.ok) {
-              toast.success('Payment confirmed! 🎉');
-              router.refresh();
-            } else {
-              toast.error(verData.error ?? 'Verification failed');
-            }
-          } catch {
-            toast.error('Could not verify payment. Please contact support if charged.');
-          } finally {
-            setLoading(false);
-          }
         },
       });
 
+      if (!handler) {
+        throw new Error('Paystack returned no handler — key may be invalid');
+      }
+
       handler.openIframe();
-    } catch {
-      toast.error('Something went wrong. Please try again.');
+    } catch (err) {
+      console.error('[paystack] setup/openIframe error:', err);
+      toast.error('Could not open payment popup. Please refresh and try again.');
       setLoading(false);
     }
   };

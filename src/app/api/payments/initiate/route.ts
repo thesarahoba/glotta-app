@@ -56,7 +56,6 @@ export async function POST(req: NextRequest) {
       reference,
       email: wallet.buyer.email,
       amount: Math.round(cappedAmount * 100), // kobo for Paystack
-      publicKey: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY,
     });
   } catch (err) {
     console.error('[payments/initiate]', err);
