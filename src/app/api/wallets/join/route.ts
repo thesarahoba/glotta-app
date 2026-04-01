@@ -37,7 +37,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: parsed.error.errors[0].message }, { status: 400 });
     }
 
-    const { productId, name, email, password, phone, address, quantity, isExisting } = parsed.data;
+    const { productId, name, email: rawEmail, password, phone, address, quantity, isExisting } = parsed.data;
+    const email = rawEmail.toLowerCase();
 
     // Fetch product
     const product = await prisma.product.findUnique({

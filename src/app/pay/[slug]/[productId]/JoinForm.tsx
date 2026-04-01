@@ -33,19 +33,60 @@ export function JoinForm({ productId, productName, price }: JoinFormProps) {
     setLoading(true);
 
     try {
-      // 1. Join / create wallet
+      if (isExisting) {
+        // Existing user: sign in directly — no need to go through the wallet API
+        const signInRes = await signIn('credentials', {
+          redirect: false,
+          email: email.toLowerCase(),
+          password,
+        });
+
+        if (signInRes?.error) {
+          toast.error('Incorrect email or password.');
+          return;
+        }
+
+        // After sign-in, create/retrieve the wallet for this product
+        const res = await fetch('/api/wallets/join', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            productId,
+            name: email.toLowerCase(),
+            email: email.toLowerCase(),
+            password,
+            phone: '',
+            address: '',
+            quantity,
+            isExisting: true,
+          }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          // Already signed in — just go to buyer dashboard
+          router.push('/buyer');
+          return;
+        }
+
+        toast.success('Welcome back!');
+        router.push(`/buyer/${data.walletId}`);
+        return;
+      }
+
+      // New user: create account + wallet
       const res = await fetch('/api/wallets/join', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           productId,
-          name: isExisting ? email : name,
-          email,
+          name,
+          email: email.toLowerCase(),
           password,
           phone,
           address,
           quantity,
-          isExisting,
+          isExisting: false,
         }),
       });
 
@@ -56,14 +97,10 @@ export function JoinForm({ productId, productName, price }: JoinFormProps) {
         return;
       }
 
-      if (data.alreadyJoined) {
-        toast('You already joined this product — logging you in…', { icon: '👋' });
-      }
-
-      // 2. Sign in
+      // Sign in the newly created account
       const signInRes = await signIn('credentials', {
         redirect: false,
-        email,
+        email: email.toLowerCase(),
         password,
       });
 
@@ -73,7 +110,7 @@ export function JoinForm({ productId, productName, price }: JoinFormProps) {
         return;
       }
 
-      toast.success(data.alreadyJoined ? 'Welcome back!' : 'Wallet created! Start paying when ready.');
+      toast.success('Wallet created! Start paying when ready.');
       router.push(`/buyer/${data.walletId}`);
     } catch {
       toast.error('Network error. Please try again.');
