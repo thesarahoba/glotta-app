@@ -4,16 +4,25 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
 import { rateLimit, rateLimitResponse } from '@/lib/rate-limit';
 
-const schema = z.object({
-  productId: z.string().min(1),
-  name: z.string().min(2).max(100),
-  email: z.string().email(),
-  password: z.string().min(6),
-  phone: z.string().min(7).max(20),
-  address: z.string().min(3).max(200),
-  quantity: z.number().int().min(1).max(100).default(1),
-  isExisting: z.boolean().default(false),
-});
+const schema = z
+  .object({
+    productId: z.string().min(1),
+    name: z.string().min(2).max(100),
+    email: z.string().email(),
+    password: z.string().min(6),
+    phone: z.string().max(20).default(''),
+    address: z.string().max(200).default(''),
+    quantity: z.number().int().min(1).max(100).default(1),
+    isExisting: z.boolean().default(false),
+  })
+  .refine((d) => d.isExisting || d.phone.length >= 7, {
+    message: 'Phone must be at least 7 characters',
+    path: ['phone'],
+  })
+  .refine((d) => d.isExisting || d.address.length >= 3, {
+    message: 'Address is required',
+    path: ['address'],
+  });
 
 export async function POST(req: NextRequest) {
   // 5 join attempts per 15 minutes per IP
