@@ -27,9 +27,10 @@ interface PayButtonProps {
   balance: number;
   planType: 'FIXED' | 'FLEXIBLE';
   installmentAmount?: number | null;
+  paystackKey: string;
 }
 
-export function PayButton({ walletId, balance, planType, installmentAmount }: PayButtonProps) {
+export function PayButton({ walletId, balance, planType, installmentAmount, paystackKey }: PayButtonProps) {
   const router = useRouter();
   const [scriptLoaded, setScriptLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -64,8 +65,6 @@ export function PayButton({ walletId, balance, planType, installmentAmount }: Pa
       return;
     }
 
-    // Use NEXT_PUBLIC env var directly — always available in client bundles
-    const paystackKey = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY;
     if (!paystackKey) {
       toast.error('Payment not configured. Please contact support.');
       return;
