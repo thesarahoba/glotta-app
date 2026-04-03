@@ -61,6 +61,10 @@ export async function POST(req: NextRequest) {
       if (!valid) {
         return NextResponse.json({ error: 'Incorrect password.' }, { status: 401 });
       }
+      // Save address to profile if they haven't set one yet
+      if (address && !buyer.shippingAddress) {
+        await prisma.user.update({ where: { id: buyer.id }, data: { shippingAddress: address } });
+      }
     } else {
       if (isExisting) {
         return NextResponse.json({ error: 'No account found with that email.' }, { status: 404 });
@@ -77,9 +81,6 @@ export async function POST(req: NextRequest) {
           ...(address && { shippingAddress: address }),
         },
       });
-    } else if (address && !buyer.shippingAddress) {
-      // Save address to profile if they haven't set one yet
-      await prisma.user.update({ where: { id: buyer.id }, data: { shippingAddress: address } });
     }
 
     // Check for existing wallet (already joined)
