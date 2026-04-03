@@ -21,6 +21,7 @@ const buyerSchema = z.object({
   password: z.string().min(8, 'Password must be at least 8 characters'),
   role: z.literal('BUYER'),
   phone: z.string().optional(),
+  shippingAddress: z.string().optional(),
 });
 
 const registerSchema = z.discriminatedUnion('role', [sellerSchema, buyerSchema]);
@@ -94,6 +95,7 @@ export async function POST(request: Request) {
           password: hashedPassword,
           role: Role.BUYER,
           phone: data.phone,
+          shippingAddress: data.role === 'BUYER' ? data.shippingAddress : undefined,
         },
         select: { id: true, email: true, name: true, role: true },
       });

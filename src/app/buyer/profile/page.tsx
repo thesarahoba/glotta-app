@@ -1,12 +1,19 @@
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
 import { redirect } from 'next/navigation';
 import { SignOutButton } from '@/components/auth/SignOutButton';
-import { User, Mail, Phone, ShieldCheck } from 'lucide-react';
+import BuyerProfileForm from '@/components/buyer/BuyerProfileForm';
+import { User, Mail, ShieldCheck } from 'lucide-react';
 
 export default async function BuyerProfilePage() {
   const session = await getServerSession(authOptions);
   if (!session) redirect('/auth/login');
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { name: true, email: true, phone: true, shippingAddress: true },
+  });
 
   const { name, email } = session.user;
 
@@ -58,6 +65,12 @@ export default async function BuyerProfilePage() {
             </div>
           </div>
         </div>
+
+        {/* Contact & address (editable) */}
+        <BuyerProfileForm
+          initialPhone={user?.phone ?? null}
+          initialAddress={user?.shippingAddress ?? null}
+        />
 
         {/* Sign out */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-5 py-4">

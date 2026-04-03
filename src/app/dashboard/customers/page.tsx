@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { formatNaira } from '@/lib/utils';
-import { Users, Package } from 'lucide-react';
+import { Users, Package, Phone, MapPin } from 'lucide-react';
 
 export default async function CustomersPage() {
   const session = await getServerSession(authOptions);
@@ -14,7 +14,7 @@ export default async function CustomersPage() {
   const wallets = await prisma.wallet.findMany({
     where: { product: { sellerId: session.user.id } },
     include: {
-      buyer: { select: { id: true, name: true, email: true, phone: true } },
+      buyer: { select: { id: true, name: true, email: true, phone: true, shippingAddress: true } },
       product: { select: { id: true, name: true, price: true } },
       payments: { where: { status: 'SUCCESS' }, orderBy: { createdAt: 'desc' }, take: 1 },
     },
@@ -66,8 +66,17 @@ export default async function CustomersPage() {
                   <div className="min-w-0">
                     <p className="font-medium text-gray-900 truncate">{wallet.buyer.name}</p>
                     <p className="text-xs text-gray-400 truncate">{wallet.buyer.email}</p>
-                    {wallet.buyer.phone && (
-                      <p className="text-xs text-gray-400">{wallet.buyer.phone}</p>
+                    {(wallet.buyerPhone || wallet.buyer.phone) && (
+                      <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
+                        <Phone size={11} className="shrink-0" />
+                        {wallet.buyerPhone || wallet.buyer.phone}
+                      </p>
+                    )}
+                    {(wallet.buyerAddress || wallet.buyer.shippingAddress) && (
+                      <p className="text-xs text-gray-500 flex items-start gap-1 mt-0.5">
+                        <MapPin size={11} className="shrink-0 mt-0.5" />
+                        <span className="truncate">{wallet.buyerAddress || wallet.buyer.shippingAddress}</span>
+                      </p>
                     )}
                   </div>
 

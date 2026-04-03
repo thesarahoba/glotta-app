@@ -15,7 +15,7 @@ export default async function ProductsPage() {
     where: { sellerId: session.user.id },
     include: { _count: { select: { wallets: true } } },
     orderBy: { createdAt: 'desc' },
-  });
+  }).catch(() => []);
 
   const baseUrl = process.env.NEXTAUTH_URL ?? '';
 

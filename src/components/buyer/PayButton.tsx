@@ -27,10 +27,12 @@ interface PayButtonProps {
   balance: number;
   planType: 'FIXED' | 'FLEXIBLE';
   installmentAmount?: number | null;
+  allowOverpay?: boolean;
+  allowUnderpay?: boolean;
   paystackKey: string;
 }
 
-export function PayButton({ walletId, balance, planType, installmentAmount, paystackKey }: PayButtonProps) {
+export function PayButton({ walletId, balance, planType, installmentAmount, allowOverpay = true, allowUnderpay = false, paystackKey }: PayButtonProps) {
   const router = useRouter();
   const [scriptLoaded, setScriptLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -50,18 +52,39 @@ export function PayButton({ walletId, balance, planType, installmentAmount, pays
     document.body.appendChild(script);
   }, []);
 
+  // For FIXED plans: whether the buyer can change the amount at all
+  const fixedDefault = planType === 'FIXED' && installmentAmount
+    ? Math.min(installmentAmount, balance)
+    : 0;
+  const fixedIsFlexible = planType === 'FIXED' && (allowOverpay || allowUnderpay);
+
   const getAmount = () => {
     if (planType === 'FIXED' && installmentAmount) {
-      return Math.min(installmentAmount, balance);
+      if (!fixedIsFlexible) return fixedDefault;
+      const parsed = parseFloat(customAmount);
+      return isNaN(parsed) ? fixedDefault : Math.min(parsed, balance);
     }
     const parsed = parseFloat(customAmount);
     return isNaN(parsed) ? 0 : Math.min(parsed, balance);
   };
 
+  const minAmount = planType === 'FIXED' && installmentAmount && !allowUnderpay
+    ? Math.min(installmentAmount, balance)
+    : 100;
+
+  const maxAmount = planType === 'FIXED' && installmentAmount && !allowOverpay
+    ? Math.min(installmentAmount, balance)
+    : balance;
+
   const handlePay = async () => {
     const amount = getAmount();
     if (amount < 100) {
       toast.error('Minimum payment is ₦100');
+      return;
+    }
+
+    if (planType === 'FIXED' && installmentAmount && !allowUnderpay && amount < Math.min(installmentAmount, balance)) {
+      toast.error(`Minimum payment is ${formatNaira(Math.min(installmentAmount, balance))}`);
       return;
     }
 
@@ -159,19 +182,23 @@ export function PayButton({ walletId, balance, planType, installmentAmount, pays
 
   return (
     <div className="space-y-3">
-      {planType === 'FLEXIBLE' && (
+      {(planType === 'FLEXIBLE' || fixedIsFlexible) && (
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1.5">
-            Enter amount <span className="text-gray-400 font-normal">(max {formatNaira(balance)})</span>
+            {planType === 'FIXED' ? (
+              <>Amount <span className="text-gray-400 font-normal">(min {formatNaira(minAmount)}{allowOverpay && balance > minAmount ? `, max ${formatNaira(balance)}` : ''})</span></>
+            ) : (
+              <>Enter amount <span className="text-gray-400 font-normal">(max {formatNaira(balance)})</span></>
+            )}
           </label>
           <div className="relative">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-semibold text-sm">₦</span>
             <input
               type="number"
-              min="100"
-              max={balance}
+              min={minAmount}
+              max={maxAmount}
               step="100"
-              placeholder="e.g. 5000"
+              placeholder={planType === 'FIXED' ? formatNaira(fixedDefault).replace('₦','') : 'e.g. 5000'}
               value={customAmount}
               onChange={(e) => setCustomAmount(e.target.value)}
               className="w-full pl-7 pr-3 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-500/40 focus:border-brand-500 text-sm text-gray-900 transition"

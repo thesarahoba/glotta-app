@@ -117,8 +117,8 @@ export async function sendPaymentConfirmationEmail({
     from: FROM,
     to: buyerEmail,
     subject: isComplete
-      ? `🎉 You've completed payment for ${productName}`
-      : `✅ Payment of ${formatNaira(amount)} confirmed — ${productName}`,
+      ? `🎉 You've completed payment for ${productName} — ${storeName}`
+      : `✅ Payment of ${formatNaira(amount)} confirmed — ${productName} (${storeName})`,
     html: body,
   });
 }
@@ -128,14 +128,20 @@ export async function sendPaymentConfirmationEmail({
 export async function sendNewPaymentAlertEmail({
   sellerEmail,
   sellerName,
+  storeName,
   buyerName,
+  buyerPhone,
+  buyerAddress,
   productName,
   amount,
   isComplete,
 }: {
   sellerEmail: string;
   sellerName: string;
+  storeName: string;
   buyerName: string;
+  buyerPhone?: string;
+  buyerAddress?: string;
   productName: string;
   amount: number;
   isComplete: boolean;
@@ -143,6 +149,7 @@ export async function sendNewPaymentAlertEmail({
   if (!process.env.RESEND_API_KEY) return;
 
   const body = baseLayout(`
+    <p style="margin:0 0 4px;font-size:12px;color:#8b5cf6;font-weight:600;text-transform:uppercase;letter-spacing:.5px;">Payment to ${storeName}</p>
     <p style="margin:0 0 8px;font-size:18px;font-weight:700;color:#1f2937;">
       ${isComplete ? 'Order Complete! 🎉' : 'New Payment Received 💰'}
     </p>
@@ -150,11 +157,17 @@ export async function sendNewPaymentAlertEmail({
 
     <table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f3ff;border-radius:12px;margin-bottom:24px;">
       <tr><td style="padding:20px 24px;">
-        <p style="margin:0 0 4px;font-size:12px;color:#8b5cf6;font-weight:600;text-transform:uppercase;letter-spacing:.5px;">Buyer</p>
+        <p style="margin:0 0 4px;font-size:12px;color:#8b5cf6;font-weight:600;text-transform:uppercase;letter-spacing:.5px;">Buyer Name</p>
         <p style="margin:0 0 16px;font-size:16px;font-weight:700;color:#1f2937;">${buyerName}</p>
+        ${buyerPhone ? `
+        <p style="margin:0 0 4px;font-size:12px;color:#8b5cf6;font-weight:600;text-transform:uppercase;letter-spacing:.5px;">Phone</p>
+        <p style="margin:0 0 16px;font-size:14px;color:#374151;">${buyerPhone}</p>` : ''}
+        ${buyerAddress ? `
+        <p style="margin:0 0 4px;font-size:12px;color:#8b5cf6;font-weight:600;text-transform:uppercase;letter-spacing:.5px;">Delivery Address</p>
+        <p style="margin:0 0 16px;font-size:14px;color:#374151;">${buyerAddress}</p>` : ''}
         <p style="margin:0 0 4px;font-size:12px;color:#8b5cf6;font-weight:600;text-transform:uppercase;letter-spacing:.5px;">Product</p>
         <p style="margin:0 0 16px;font-size:14px;color:#374151;">${productName}</p>
-        <p style="margin:0 0 4px;font-size:12px;color:#8b5cf6;font-weight:600;text-transform:uppercase;letter-spacing:.5px;">Amount</p>
+        <p style="margin:0 0 4px;font-size:12px;color:#8b5cf6;font-weight:600;text-transform:uppercase;letter-spacing:.5px;">Amount Paid</p>
         <p style="margin:0;font-size:20px;font-weight:800;color:#7c3aed;">${formatNaira(amount)}</p>
         ${isComplete ? `<p style="margin:8px 0 0;font-size:14px;color:#16a34a;font-weight:600;">✅ Buyer has paid in full — process their order!</p>` : ''}
       </td></tr>
@@ -170,8 +183,8 @@ export async function sendNewPaymentAlertEmail({
     from: FROM,
     to: sellerEmail,
     subject: isComplete
-      ? `🎉 ${buyerName} completed payment for ${productName}`
-      : `💰 ${buyerName} paid ${formatNaira(amount)} for ${productName}`,
+      ? `🎉 ${buyerName} completed payment for ${productName} — ${storeName}`
+      : `💰 ${buyerName} paid ${formatNaira(amount)} for ${productName} — ${storeName}`,
     html: body,
   });
 }

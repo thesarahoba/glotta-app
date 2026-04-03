@@ -30,12 +30,31 @@ export async function POST(req: NextRequest) {
 
     const wallet = await prisma.wallet.findUnique({
       where: { id: walletId },
-      include: { buyer: { select: { email: true } } },
+      include: {
+        buyer: { select: { email: true } },
+        product: { select: { planType: true, installmentAmount: true, allowUnderpay: true } },
+      },
     });
 
     if (!wallet) return NextResponse.json({ error: 'Wallet not found' }, { status: 404 });
     if (wallet.buyerId !== session.user.id) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     if (wallet.status === 'COMPLETED') return NextResponse.json({ error: 'Wallet already completed' }, { status: 400 });
+
+    // Enforce minimum installment for FIXED plans where underpay is not allowed
+    const { product } = wallet;
+    if (
+      product.planType === 'FIXED' &&
+      product.installmentAmount &&
+      !product.allowUnderpay
+    ) {
+      const minimum = Math.min(product.installmentAmount, wallet.balance);
+      if (amount < minimum) {
+        return NextResponse.json(
+          { error: `Minimum payment is ₦${minimum.toLocaleString()}` },
+          { status: 400 }
+        );
+      }
+    }
 
     // Cap amount at remaining balance
     const cappedAmount = Math.min(amount, wallet.balance);

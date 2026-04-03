@@ -1,18 +1,114 @@
-// This is your Prisma schema file
-// Learn more at: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
-// ─────────────────────────────────────────
-// ENUMS
-// ─────────────────────────────────────────
+model User {
+  id            String         @id @default(cuid())
+  email         String         @unique
+  password      String
+  name          String
+  phone         String?
+  role          Role           @default(BUYER)
+  storeName     String?
+  storeSlug     String?        @unique
+  storeDesc     String?
+  storeLogo     String?
+  shippingAddress String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  notifications Notification[]
+  products      Product[]      @relation("SellerProducts")
+  wallets       Wallet[]       @relation("BuyerWallets")
+
+  @@index([storeSlug])
+}
+
+model Product {
+  id                String           @id @default(cuid())
+  name              String
+  description       String?
+  imageUrl          String?
+  price             Float
+  quantity          Int?
+  planType          PaymentPlanType  @default(FLEXIBLE)
+  lockFunds         Boolean          @default(true)
+  installmentAmount Float?
+  interval          PaymentInterval?
+  durationCount     Int?
+  allowOverpay      Boolean          @default(true)
+  allowUnderpay     Boolean          @default(false)
+  isActive          Boolean          @default(true)
+  sellerId          String
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  seller            User             @relation("SellerProducts", fields: [sellerId], references: [id], onDelete: Cascade)
+  wallets           Wallet[]
+
+  @@index([sellerId])
+  @@index([isActive])
+}
+
+model Wallet {
+  id              String       @id @default(cuid())
+  totalPrice      Float
+  amountPaid      Float        @default(0)
+  balance         Float
+  progressPercent Float        @default(0)
+  status          WalletStatus @default(ACTIVE)
+  buyerName       String
+  buyerPhone      String
+  buyerAddress    String
+  quantity        Int          @default(1)
+  buyerId         String
+  productId       String
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  points          Int          @default(0)
+  payments        Payment[]
+  buyer           User         @relation("BuyerWallets", fields: [buyerId], references: [id], onDelete: Cascade)
+  product         Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([buyerId, productId])
+  @@index([buyerId])
+  @@index([productId])
+  @@index([status])
+}
+
+model Payment {
+  id         String        @id @default(cuid())
+  amount     Float
+  status     PaymentStatus @default(PENDING)
+  reference  String        @unique
+  paystackId String?
+  walletId   String
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+  wallet     Wallet        @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  @@index([walletId])
+  @@index([reference])
+  @@index([status])
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  type      NotificationType
+  title     String
+  message   String
+  isRead    Boolean          @default(false)
+  userId    String
+  createdAt DateTime         @default(now())
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isRead])
+}
 
 enum Role {
   SELLER
@@ -20,8 +116,8 @@ enum Role {
 }
 
 enum PaymentPlanType {
-  FIXED      // e.g. ₦1,100 every day for 70 days
-  FLEXIBLE   // pay any amount, any time
+  FIXED
+  FLEXIBLE
 }
 
 enum PaymentInterval {
@@ -47,150 +143,4 @@ enum NotificationType {
   PAYMENT_CONFIRMED
   WALLET_COMPLETED
   GENERAL
-}
-
-// ─────────────────────────────────────────
-// USER
-// ─────────────────────────────────────────
-
-model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  password      String
-  name          String
-  phone         String?
-  role          Role      @default(BUYER)
-
-  // Seller-specific
-  storeName     String?
-  storeSlug     String?   @unique   // e.g. "kikihair" → kikihair.glotta.app
-  storeDesc     String?
-  storeLogo     String?   // Cloudinary URL
-
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  // Relations
-  products      Product[]       @relation("SellerProducts")
-  wallets       Wallet[]        @relation("BuyerWallets")
-  notifications Notification[]
-
-  @@index([storeSlug])
-}
-
-// ─────────────────────────────────────────
-// PRODUCT
-// ─────────────────────────────────────────
-
-model Product {
-  id              String          @id @default(cuid())
-  name            String
-  description     String?
-  imageUrl        String?         // Cloudinary URL
-  price           Float           // Total price in Naira (kobo stored, displayed as Naira)
-  quantity        Int?            // Optional stock quantity
-
-  planType        PaymentPlanType @default(FLEXIBLE)
-  lockFunds       Boolean         @default(true)  // Funds held until completion
-
-  // For FIXED plans
-  installmentAmount  Float?       // Amount per interval
-  interval           PaymentInterval?
-  durationCount      Int?         // e.g. 70 (days)
-
-  isActive        Boolean         @default(true)
-  sellerId        String
-  seller          User            @relation("SellerProducts", fields: [sellerId], references: [id], onDelete: Cascade)
-
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-
-  // Relations
-  wallets         Wallet[]
-
-  @@index([sellerId])
-  @@index([isActive])
-}
-
-// ─────────────────────────────────────────
-// WALLET  (one per buyer per product)
-// ─────────────────────────────────────────
-
-model Wallet {
-  id              String        @id @default(cuid())
-  totalPrice      Float         // Snapshot of product price at time of joining
-  amountPaid      Float         @default(0)
-  balance         Float         // totalPrice - amountPaid
-  progressPercent Float         @default(0)  // 0–100
-  status          WalletStatus  @default(ACTIVE)
-
-  // Buyer info collected at onboarding
-  buyerName       String
-  buyerPhone      String
-  buyerAddress    String
-  quantity        Int           @default(1)
-
-  buyerId         String
-  buyer           User          @relation("BuyerWallets", fields: [buyerId], references: [id], onDelete: Cascade)
-
-  productId       String
-  product         Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
-
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-
-  // Relations
-  payments        Payment[]
-
-  // Gamification
-  points          Int           @default(0)
-
-  @@unique([buyerId, productId])   // One wallet per buyer per product
-  @@index([buyerId])
-  @@index([productId])
-  @@index([status])
-}
-
-// ─────────────────────────────────────────
-// PAYMENT
-// ─────────────────────────────────────────
-
-model Payment {
-  id              String        @id @default(cuid())
-  amount          Float         // Amount paid in this transaction (Naira)
-  status          PaymentStatus @default(PENDING)
-
-  // Paystack references
-  reference       String        @unique  // Paystack transaction reference
-  paystackId      String?       // Paystack internal transaction ID
-
-  walletId        String
-  wallet          Wallet        @relation(fields: [walletId], references: [id], onDelete: Cascade)
-
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-
-  @@index([walletId])
-  @@index([reference])
-  @@index([status])
-}
-
-// ─────────────────────────────────────────
-// NOTIFICATION
-// ─────────────────────────────────────────
-
-model Notification {
-  id        String           @id @default(cuid())
-  type      NotificationType
-  title     String
-  message   String
-  isRead    Boolean          @default(false)
-
-  userId    String
-  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime         @default(now())
-
-  @@index([userId])
-  @@index([isRead])
 }

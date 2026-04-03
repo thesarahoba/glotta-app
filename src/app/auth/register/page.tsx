@@ -22,6 +22,7 @@ function RegisterForm() {
     password: '',
     storeName: '',
     phone: '',
+    shippingAddress: '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
@@ -53,6 +54,7 @@ function RegisterForm() {
           role,
           ...(role === 'SELLER' && { storeName: form.storeName }),
           ...(form.phone && { phone: form.phone }),
+          ...(role === 'BUYER' && form.shippingAddress && { shippingAddress: form.shippingAddress }),
         }),
       });
 
@@ -155,6 +157,18 @@ function RegisterForm() {
           onChange={(e) => setForm({ ...form, phone: e.target.value })}
           autoComplete="tel"
         />
+        {role === 'BUYER' && (
+          <Input
+            id="shippingAddress"
+            label="Delivery address"
+            type="text"
+            placeholder="12 Adeola Street, Lagos"
+            value={form.shippingAddress}
+            onChange={(e) => setForm({ ...form, shippingAddress: e.target.value })}
+            hint="Where should sellers send your orders?"
+            autoComplete="street-address"
+          />
+        )}
         <Input
           id="password"
           label="Password"

@@ -10,6 +10,8 @@ const updateProductSchema = z.object({
   price: z.number().positive().optional(),
   quantity: z.number().int().positive().optional().nullable(),
   isActive: z.boolean().optional(),
+  allowOverpay: z.boolean().optional(),
+  allowUnderpay: z.boolean().optional(),
   imageUrl: z.string().url().optional().nullable(),
 });
 

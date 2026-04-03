@@ -74,8 +74,12 @@ export async function POST(req: NextRequest) {
           name,
           phone,
           role: 'BUYER',
+          ...(address && { shippingAddress: address }),
         },
       });
+    } else if (address && !buyer.shippingAddress) {
+      // Save address to profile if they haven't set one yet
+      await prisma.user.update({ where: { id: buyer.id }, data: { shippingAddress: address } });
     }
 
     // Check for existing wallet (already joined)
@@ -89,6 +93,9 @@ export async function POST(req: NextRequest) {
 
     // Create wallet
     const totalPrice = product.price * quantity;
+    // For existing users, use their stored name/phone — the form sends email as name placeholder
+    const walletBuyerName = isExisting ? buyer.name : name;
+    const walletBuyerPhone = isExisting ? (buyer.phone ?? phone) : phone;
     const wallet = await prisma.wallet.create({
       data: {
         buyerId: buyer.id,
@@ -97,8 +104,8 @@ export async function POST(req: NextRequest) {
         balance: totalPrice,
         amountPaid: 0,
         progressPercent: 0,
-        buyerName: name,
-        buyerPhone: phone,
+        buyerName: walletBuyerName,
+        buyerPhone: walletBuyerPhone,
         buyerAddress: address,
         quantity,
         status: 'ACTIVE',

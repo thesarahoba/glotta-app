@@ -98,8 +98,8 @@ export async function processSuccessfulPayment(reference: string): Promise<{ wal
         type: isComplete ? 'WALLET_COMPLETED' : 'PAYMENT_CONFIRMED',
         title: isComplete ? 'Payment Complete! 🎉' : 'Payment Confirmed',
         message: isComplete
-          ? `You've completed payment for ${productName}. The seller will process your order. You earned ${pointsEarned} points!`
-          : `Your payment of ₦${payment.amount.toLocaleString()} for ${productName} was confirmed. +${pointsEarned} points!`,
+          ? `You've completed payment for ${productName} from ${seller.storeName ?? seller.name}. They will process your order soon. You earned ${pointsEarned} points!`
+          : `Your payment of ₦${payment.amount.toLocaleString()} for ${productName} from ${seller.storeName ?? seller.name} was confirmed. +${pointsEarned} points!`,
       },
     }),
     // Milestone notifications
@@ -129,7 +129,10 @@ export async function processSuccessfulPayment(reference: string): Promise<{ wal
   void sendNewPaymentAlertEmail({
     sellerEmail: seller.email,
     sellerName: seller.name,
-    buyerName: buyer.name,
+    storeName: seller.storeName ?? seller.name,
+    buyerName: wallet.buyerName,
+    buyerPhone: wallet.buyerPhone || undefined,
+    buyerAddress: wallet.buyerAddress || undefined,
     productName,
     amount: payment.amount,
     isComplete,

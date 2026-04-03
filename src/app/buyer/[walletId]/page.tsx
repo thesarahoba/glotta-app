@@ -138,6 +138,8 @@ export default async function WalletPage({ params }: PageProps) {
               balance={wallet.balance}
               planType={product.planType as 'FIXED' | 'FLEXIBLE'}
               installmentAmount={product.installmentAmount}
+              allowOverpay={product.allowOverpay}
+              allowUnderpay={product.allowUnderpay}
               paystackKey={process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY ?? ''}
             />
           )}

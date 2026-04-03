@@ -22,6 +22,8 @@ interface ProductFormProps {
     interval?: Interval | null;
     durationCount?: number | null;
     lockFunds?: boolean;
+    allowOverpay?: boolean;
+    allowUnderpay?: boolean;
     isActive?: boolean;
     imageUrl?: string | null;
   };
@@ -39,6 +41,8 @@ export function ProductForm({ productId, defaultValues, mode }: ProductFormProps
   const [interval, setInterval] = useState<Interval>(defaultValues?.interval ?? 'WEEKLY');
   const [durationCount, setDurationCount] = useState(defaultValues?.durationCount?.toString() ?? '');
   const [lockFunds, setLockFunds] = useState(defaultValues?.lockFunds ?? false);
+  const [allowOverpay, setAllowOverpay] = useState(defaultValues?.allowOverpay ?? true);
+  const [allowUnderpay, setAllowUnderpay] = useState(defaultValues?.allowUnderpay ?? false);
   const [isActive, setIsActive] = useState(defaultValues?.isActive ?? true);
   const [imageUrl, setImageUrl] = useState(defaultValues?.imageUrl ?? '');
   const [loading, setLoading] = useState(false);
@@ -62,6 +66,8 @@ export function ProductForm({ productId, defaultValues, mode }: ProductFormProps
       price: priceNum,
       planType,
       lockFunds,
+      allowOverpay,
+      allowUnderpay,
       isActive,
       ...(imageUrl ? { imageUrl } : {}),
     };
@@ -226,6 +232,36 @@ export function ProductForm({ productId, defaultValues, mode }: ProductFormProps
             <p className="text-xs text-gray-400">Funds will only be released to you once the buyer pays in full.</p>
           </div>
         </label>
+
+        {planType === 'FIXED' && (
+          <>
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                className="mt-0.5 h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+                checked={allowOverpay}
+                onChange={(e) => setAllowOverpay(e.target.checked)}
+              />
+              <div>
+                <p className="text-sm font-medium text-gray-900">Allow buyers to pay more than the installment</p>
+                <p className="text-xs text-gray-400">Buyers can pay ahead by entering a higher amount than scheduled.</p>
+              </div>
+            </label>
+
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                className="mt-0.5 h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+                checked={allowUnderpay}
+                onChange={(e) => setAllowUnderpay(e.target.checked)}
+              />
+              <div>
+                <p className="text-sm font-medium text-gray-900">Allow buyers to pay less than the installment</p>
+                <p className="text-xs text-gray-400">Buyers can pay a partial amount below the scheduled installment.</p>
+              </div>
+            </label>
+          </>
+        )}
 
         {mode === 'edit' && (
           <label className="flex items-start gap-3 cursor-pointer">

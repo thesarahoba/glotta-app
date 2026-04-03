@@ -10,9 +10,14 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const session = await getServerSession(authOptions);
   if (!session || session.user.role !== 'SELLER') redirect('/auth/login');
 
-  const unreadCount = await prisma.notification.count({
-    where: { userId: session.user.id, isRead: false },
-  });
+  let unreadCount = 0;
+  try {
+    unreadCount = await prisma.notification.count({
+      where: { userId: session.user.id, isRead: false },
+    });
+  } catch {
+    // DB temporarily unreachable — render layout without count
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
